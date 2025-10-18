@@ -4,27 +4,27 @@ import math
 from ultralytics import YOLO
 from collections import deque
 
-# ---------------- إعدادات ----------------
-VIDEO_PATH = r"C:\Users\HP\Desktop\foot ball\messi.mp4"
+
+VIDEO_PATH = r"C:\Users\HP\Desktop\foot ball\goal.mp4"
 MODEL_PATH = r"C:\Users\HP\Desktop\foot ball\models\best.pt"
 OUTPUT_PATH = r"C:\Users\HP\Desktop\foot ball\output_final.mp4"
 
-# الإعدادات البسيطة والفعالة
-MOVEMENT_THRESHOLD = 30  # أقل حركة تُحسب (لتجاهل الضوضاء)
-PASS_MAX_DISTANCE = 200  # التمريرة: مسافة قصيرة/متوسطة
-SHOT_MIN_DISTANCE = 200  # الشوت: مسافة طويلة جدًا
 
-MIN_TIME_BETWEEN_EVENTS = 1.5  # ثانية ونص بين كل حدث
-MAX_MISSING_FRAMES = 5  # أقصى إطارات يختفي فيها الكرة ونستمر في التتبع
+MOVEMENT_THRESHOLD = 30 
+PASS_MAX_DISTANCE = 200  
+SHOT_MIN_DISTANCE = 200 
+
+MIN_TIME_BETWEEN_EVENTS = 1.5 
+MAX_MISSING_FRAMES = 5  
 
 FPS_FALLBACK = 25.0
 MINIMAP_SIZE = (200, 120)
 
-# ---------------- تحميل الموديل ----------------
+
 model = YOLO(MODEL_PATH)
 cap = cv2.VideoCapture(VIDEO_PATH)
 if not cap.isOpened():
-    raise Exception("❌ فشل في تحميل الفيديو")
+    raise Exception("wrong")
 
 fps = cap.get(cv2.CAP_PROP_FPS) or FPS_FALLBACK
 w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
@@ -37,13 +37,13 @@ MIN_FRAMES_BETWEEN_EVENTS = int(fps * MIN_TIME_BETWEEN_EVENTS)
 fourcc = cv2.VideoWriter_fourcc(*'mp4v')
 out = cv2.VideoWriter(OUTPUT_PATH, fourcc, fps, (w, h))
 
-# ---------------- متغيرات التحليل ----------------
+
 ball_trail = deque(maxlen=TRAIL_MAX_LEN)
 
 pass_count = 0
 shot_count = 0
 
-# متغيرات التتبع
+
 tracking_active = False
 track_start_pos = None
 track_start_frame = 0
@@ -55,7 +55,7 @@ last_event_frame = -999
 current_frame = 0
 current_speed = 0
 
-# ---------------- دوال مساعدة ----------------
+
 def draw_trail(frame, trail):
     for i in range(1, len(trail)):
         pt1 = trail[i - 1]
@@ -99,30 +99,28 @@ def draw_minimap(frame, detections, ball_center):
     return frame
 
 def finalize_event(distance, start_frame, end_frame):
-    """تحديد نوع الحدث بناءً على المسافة المقطوعة"""
+   
     global pass_count, shot_count, last_event_frame
     
-    # تجاهل الحركات الصغيرة
+
     if distance < MOVEMENT_THRESHOLD:
         return
     
-    # تجاهل الأحداث المتقاربة جدًا
+
     if (end_frame - last_event_frame) < MIN_FRAMES_BETWEEN_EVENTS:
         return
-    
-    # الحكم البسيط: المسافة الطويلة = شوت، القصيرة = تمريرة
+
     if distance >= SHOT_MIN_DISTANCE:
         shot_count += 1
         last_event_frame = end_frame
-        print(f"🎯 SHOT! Frame: {end_frame} | Distance: {distance:.0f} px | Duration: {(end_frame-start_frame)/fps:.2f}s")
+        print(f"SHOT! Frame: {end_frame} | Distance: {distance:.0f} px | Duration: {(end_frame-start_frame)/fps:.2f}s")
     
     elif distance >= MOVEMENT_THRESHOLD:
         pass_count += 1
         last_event_frame = end_frame
-        print(f"⚽ PASS! Frame: {end_frame} | Distance: {distance:.0f} px | Duration: {(end_frame-start_frame)/fps:.2f}s")
+        print(f" PASS! Frame: {end_frame} | Distance: {distance:.0f} px | Duration: {(end_frame-start_frame)/fps:.2f}s")
 
-# ---------------- الحلقة الرئيسية ----------------
-print("\n🎬 بدء التحليل...")
+print("\n...")
 print("="*60)
 
 while True:
@@ -147,7 +145,7 @@ while True:
         elif cls_id in [1, 2, 3]:
             cv2.rectangle(frame, (int(x1), int(y1)), (int(x2), int(y2)), (255, 0, 0), 2)
 
-    # ---------- المنطق الأساسي ----------
+
     if ball_center:
         missing_frames = 0
         ball_trail.appendleft(ball_center)
@@ -158,17 +156,15 @@ while True:
                 ball_center[1] - last_ball_pos[1]
             )
             current_speed = frame_distance * fps
-            
-            # بداية تتبع جديد
+
             if not tracking_active:
                 if frame_distance > MOVEMENT_THRESHOLD:
                     tracking_active = True
                     track_start_pos = last_ball_pos
                     track_start_frame = current_frame
                     total_distance = frame_distance
-                    print(f"▶️  Tracking started at frame {current_frame}")
-            
-            # استمرار التتبع
+                    print(f"  Tracking started at frame {current_frame}")
+    
             else:
                 total_distance += frame_distance
         
@@ -176,27 +172,24 @@ while True:
         frame = draw_trail(frame, ball_trail)
     
     else:
-        # الكرة اختفت
+   
         missing_frames += 1
         
-        # إنهاء التتبع لو الاختفاء طال
+      
         if tracking_active and missing_frames > MAX_MISSING_FRAMES:
             finalize_event(total_distance, track_start_frame, current_frame - missing_frames)
             tracking_active = False
             total_distance = 0
-            print(f"⏹️  Tracking ended (ball lost)\n")
-    
-    # إنهاء التتبع لو الكرة بطئت/توقفت
+            print(f" Tracking ended (ball lost)\n")
+
     if tracking_active and ball_center and current_speed < 100:
         finalize_event(total_distance, track_start_frame, current_frame)
         tracking_active = False
         total_distance = 0
-        print(f"⏹️  Tracking ended (ball stopped)\n")
+        print(f"  Tracking ended (ball stopped)\n")
 
-    # ---------- رسم الخريطة الصغيرة ----------
     frame = draw_minimap(frame, detections, ball_center)
 
-    # ---------- رسم الداشبورد ----------
     dash_h = 80
     dashboard = np.zeros((dash_h, w-MINIMAP_SIZE[0], 3), dtype=np.uint8)
 
@@ -205,7 +198,7 @@ while True:
     cv2.putText(dashboard, f"Passes: {pass_count}", (30, 45), font, 1, (0, 255, 0), 2)
     cv2.putText(dashboard, f"Shots: {shot_count}", (section_width + 30, 45), font, 1, (0, 255, 255), 2)
     
-    # عرض المسافة الحالية أثناء التتبع
+
     if tracking_active:
         cv2.putText(dashboard, f"Track: {total_distance:.0f}px", (section_width * 2 + 30, 45), font, 0.8, (255, 255, 0), 2)
     else:
@@ -219,19 +212,19 @@ while True:
     if cv2.waitKey(1) & 0xFF == ord("q"):
         break
 
-# إنهاء أي تتبع نشط
 if tracking_active:
     finalize_event(total_distance, track_start_frame, current_frame)
 
-# ---------------- إنهاء البرنامج ----------------
+
 cap.release()
 out.release()
 cv2.destroyAllWindows()
 
 print("\n" + "="*60)
-print("✅ انتهى التحليل بنجاح!")
-print(f"📁 الفيديو محفوظ في: {OUTPUT_PATH}")
-print(f"\n📊 النتائج النهائية:")
-print(f"   ⚽ Passes: {pass_count}")
-print(f"   🎯 Shots: {shot_count}")
+print("true")
+print("{OUTPUT_PATH}")
+print(f"\n:")
+print(f"    Passes: {pass_count}")
+print(f"    Shots: {shot_count}")
+
 print("="*60)
